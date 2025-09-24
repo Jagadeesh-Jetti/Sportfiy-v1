@@ -1,0 +1,232 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  // output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------- ENUMS ----------------
+
+enum Role {
+  PLAYER
+  MERCHANT
+  ADMIN
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  PRO
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum Privacy {
+  PUBLIC
+  PRIVATE
+}
+
+enum NotificationType {
+  BOOKING_UPDATE
+  PAYMENT
+  REMINDER
+  GENERAL
+}
+
+// ---------------- MODELS ----------------
+
+// USERS
+model User {
+  id        String      @id @default(uuid())
+  name      String
+  email     String      @unique
+  password  String
+  phone     String?     @unique
+  avatarUrl String?
+  bio       String?
+  skill     SkillLevel?
+  role      Role        @default(PLAYER)
+
+  // Relations
+  preferredSports        Sport[]        @relation("UserSports")
+  bookings               Booking[]
+  reviews                Review[]
+  activitiesHosted       Activity[]     @relation("HostedActivities")
+  activitiesParticipated Activity[]     @relation("ActivityParticipants")
+  venues                 Venue[] // If merchant owns venues
+  coupons                Coupon[]       @relation("UserCoupons")
+  notifications          Notification[]
+
+  loyaltyPoints Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([name])
+}
+
+// SPORTS
+model Sport {
+  id               String     @id @default(uuid())
+  name             String     @unique
+  preferredByUsers User[]     @relation("UserSports")
+  venues           Venue[]
+  bookings         Booking[]
+  activities       Activity[]
+
+  @@index([name])
+}
+
+// VENUES
+model Venue {
+  id          String     @id @default(uuid())
+  name        String
+  description String?
+  location    String
+  city        String?
+  address     String?
+  images      String[]
+  lat         Float
+  lng         Float
+  owner       User       @relation(fields: [ownerId], references: [id])
+  ownerId     String
+  activities  Activity[]
+
+  sports   Sport[]
+  slots    Slot[]
+  bookings Booking[]
+  reviews  Review[]
+
+  openingHour         Int
+  closingHour         Int
+  slotDurationMinutes Int
+  pricePerHour        Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([location])
+}
+
+// SLOTS
+model Slot {
+  id        String    @id @default(uuid())
+  venue     Venue     @relation(fields: [venueId], references: [id])
+  venueId   String
+  date      DateTime
+  startTime DateTime
+  endTime   DateTime
+  bookings  Booking[]
+
+  createdAt DateTime @default(now())
+
+  @@index([venueId, date])
+  @@index([startTime, endTime])
+}
+
+// BOOKINGS
+model Booking {
+  id      String        @id @default(uuid())
+  user    User          @relation(fields: [userId], references: [id])
+  userId  String
+  venue   Venue         @relation(fields: [venueId], references: [id])
+  venueId String
+  sport   Sport         @relation(fields: [sportId], references: [id])
+  sportId String
+  slot    Slot?         @relation(fields: [slotId], references: [id])
+  slotId  String?
+  status  BookingStatus @default(PENDING)
+  payment Payment?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([venueId, sportId, createdAt])
+}
+
+// PAYMENTS
+model Payment {
+  id            String        @id @default(uuid())
+  booking       Booking       @relation(fields: [bookingId], references: [id])
+  bookingId     String        @unique
+  amount        Float
+  provider      String? // razorpay, stripe
+  transactionId String? // external transaction ref
+  status        PaymentStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+}
+
+// REVIEWS
+model Review {
+  id        String   @id @default(uuid())
+  rating    Int
+  comment   String?
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  venue     Venue    @relation(fields: [venueId], references: [id])
+  venueId   String
+  createdAt DateTime @default(now())
+}
+
+// ACTIVITIES / EVENTS
+model Activity {
+  id           String    @id @default(uuid())
+  title        String
+  description  String?
+  sport        Sport     @relation(fields: [sportId], references: [id])
+  sportId      String
+  host         User      @relation("HostedActivities", fields: [hostId], references: [id])
+  hostId       String
+  venue        Venue?    @relation(fields: [venueId], references: [id])
+  venueId      String?
+  participants User[]    @relation("ActivityParticipants")
+  startsAt     DateTime
+  endsAt       DateTime?
+  capacity     Int
+  price        Float     @default(0)
+  privacy      Privacy   @default(PUBLIC)
+
+  createdAt DateTime @default(now())
+}
+
+// COUPONS
+model Coupon {
+  id         String   @id @default(uuid())
+  code       String   @unique
+  discount   Float
+  expiryDate DateTime
+  users      User[]   @relation("UserCoupons")
+}
+
+// NOTIFICATIONS
+model Notification {
+  id        String           @id @default(uuid())
+  type      NotificationType @default(GENERAL)
+  message   String
+  read      Boolean          @default(false)
+  user      User             @relation(fields: [userId], references: [id])
+  userId    String
+  createdAt DateTime         @default(now())
+}
