@@ -18,4 +18,4 @@ process.on('beforeExit', async () => {
   await prisma.$disconnect();
 });
 
-export default prisma;
+export { prisma };
