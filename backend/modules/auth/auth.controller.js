@@ -1,4 +1,4 @@
-import { registerUser, loginUser } from './auth.service';
+import { registerUser, loginUser } from './auth.service.js';
 
 export const register = async (req, res, next) => {
   try {
@@ -9,7 +9,7 @@ export const register = async (req, res, next) => {
     }
 
     const user = await registerUser({ name, email, password });
-    res.status(201).json(user);
+    return res.status(201).json(user);
   } catch (error) {
     next(error);
   }
@@ -19,12 +19,12 @@ export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    if (!email | !password) {
+    if (!email || !password) {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
     const user = await loginUser({ email, password });
-    res.json(user);
+    return res.json(user);
   } catch (error) {
     next(error);
   }
