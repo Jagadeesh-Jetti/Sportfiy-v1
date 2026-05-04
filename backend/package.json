@@ -1,28 +1,45 @@
 {
-  "name": "backend",
-  "version": "1.0.0",
-  "main": "index.js",
-  "type": "module",
+  "name": "sportify-backend",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/server.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p .",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "migrate": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "studio": "prisma studio",
+    "generate": "prisma generate",
+    "seed": "tsx prisma/seed.ts"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "dependencies": {
     "@prisma/client": "^6.16.2",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.2",
-    "express": "^5.1.0",
+    "date-fns": "^4.1.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
-    "prisma": "^6.16.2"
+    "pino": "^9.5.0",
+    "pino-http": "^10.3.0",
+    "pino-pretty": "^11.3.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "@types/bcrypt": "^5.0.2",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.10.0",
+    "prisma": "^6.16.2",
+    "tsx": "^4.20.0",
+    "typescript": "^5.6.3"
   }
 }

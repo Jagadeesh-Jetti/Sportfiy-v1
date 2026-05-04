@@ -1,4 +1,8 @@
 node_modules/
-
-/generated/prisma
+dist/
 .env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+/generated/prisma
