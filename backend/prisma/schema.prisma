@@ -127,6 +127,7 @@ model Venue {
 
   @@index([name])
   @@index([location])
+  @@index([city])
 }
 
 // SLOTS
@@ -141,6 +142,7 @@ model Slot {
 
   createdAt DateTime @default(now())
 
+  @@unique([venueId, date, startTime])
   @@index([venueId, date])
   @@index([startTime, endTime])
 }
@@ -156,7 +158,7 @@ model Booking {
   sportId String
   slot    Slot?         @relation(fields: [slotId], references: [id])
   slotId  String?
-  status  BookingStatus @default(PENDING)
+  status  BookingStatus @default(CONFIRMED)
   payment Payment?
 
   createdAt DateTime @default(now())
