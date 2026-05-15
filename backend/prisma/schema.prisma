@@ -78,6 +78,8 @@ model User {
 
   loyaltyPoints Int @default(0)
 
+  favorites Favorite[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -105,12 +107,15 @@ model Venue {
   location    String
   city        String?
   address     String?
+  phone       String?
   images      String[]
+  amenities   String[]   @default([])
   lat         Float
   lng         Float
   owner       User       @relation(fields: [ownerId], references: [id])
   ownerId     String
   activities  Activity[]
+  favoritedBy Favorite[]
 
   sports   Sport[]
   slots    Slot[]
@@ -122,12 +127,20 @@ model Venue {
   slotDurationMinutes Int
   pricePerHour        Float?
 
+  // Denormalized aggregates — kept in sync by the reviews service so
+  // the venue list query stays cheap (no JOIN-and-aggregate per row).
+  avgRating   Float? // null when reviewCount = 0
+  reviewCount Int    @default(0)
+
+  isVerified Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([name])
   @@index([location])
   @@index([city])
+  @@index([avgRating])
 }
 
 // SLOTS
@@ -182,14 +195,34 @@ model Payment {
 
 // REVIEWS
 model Review {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   rating    Int
   comment   String?
+  user      User      @relation(fields: [userId], references: [id])
+  userId    String
+  venue     Venue     @relation(fields: [venueId], references: [id])
+  venueId   String
+  // Optional merchant reply (a venue owner can respond once per review).
+  reply     String?
+  replyAt   DateTime?
+  createdAt DateTime  @default(now())
+
+  // One review per user per venue (player can edit, not duplicate).
+  @@unique([userId, venueId])
+  @@index([venueId])
+}
+
+// FAVORITES — heart a venue
+model Favorite {
+  id        String   @id @default(uuid())
   user      User     @relation(fields: [userId], references: [id])
   userId    String
   venue     Venue    @relation(fields: [venueId], references: [id])
   venueId   String
   createdAt DateTime @default(now())
+
+  @@unique([userId, venueId])
+  @@index([userId])
 }
 
 // ACTIVITIES / EVENTS
