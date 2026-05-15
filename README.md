@@ -119,9 +119,51 @@ wait
 - Email verification + password reset — needs an email provider.
 - Automated tests — Vitest + Supertest (backend) and Playwright (frontend e2e) tracked as a follow-up.
 
-## Deploy targets
+## Deploy
 
-- Backend → Render (`npm run build` → `npm start`; build step runs `prisma migrate deploy`).
-- Frontend → Vercel (`npm run build` → static `dist/`; set `VITE_API_URL` to the Render URL).
-- DB → Neon (already provisioned).
-- After deploy, set backend `CORS_ORIGIN` to the Vercel URL.
+The repo ships with deploy configs for both sides:
+
+- `render.yaml` — backend blueprint for [Render](https://render.com) (free tier, recommended)
+- `backend/railway.json` — backend config for [Railway](https://railway.app) (alternative)
+- `frontend/vercel.json` — frontend config for [Vercel](https://vercel.com) (free tier)
+
+Database stays on [Neon](https://neon.tech) (already provisioned).
+
+### Step 1 — backend on Render (5 min)
+
+1. https://render.com → **New +** → **Blueprint**.
+2. Connect this repo. Render detects `render.yaml` and proposes the `sportify-api` service.
+3. Add the three secret env vars in the dashboard (the blueprint marks them as `sync: false`):
+   - `DATABASE_URL` — your Neon connection string
+   - `JWT_SECRET` — 32+ random chars (`node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"`)
+   - `CORS_ORIGIN` — set to a placeholder for now, e.g. `http://localhost:5173`. Update after step 2.
+4. **Apply**. First build runs `prisma generate && tsc -p .`; start runs `prisma migrate deploy && node dist/server.js`. Visit `/health` to confirm.
+
+You'll get a URL like `https://sportify-api.onrender.com`.
+
+### Step 2 — frontend on Vercel (3 min)
+
+1. https://vercel.com/new → import this repo.
+2. Set **Root Directory** to `frontend`.
+3. Vercel auto-detects Vite. Confirm build command `npm run build`, output `dist`.
+4. Add env var **`VITE_API_URL`** = `https://sportify-api.onrender.com/api` (from step 1).
+5. **Deploy**.
+
+### Step 3 — wire them together (1 min)
+
+Back in Render → Environment → set `CORS_ORIGIN` to your Vercel URL (e.g. `https://sportify.vercel.app`) → save → service auto-redeploys.
+
+Done. Visit the Vercel URL.
+
+### Notes
+
+- The first request to the Render free tier after 15 min of inactivity wakes the dyno (~30s cold start). Upgrade to a paid plan to keep it warm.
+- Rotate the Neon password before going public — the original was in git history. Generate a new one in the Neon console and update `DATABASE_URL` in Render.
+- The seed only runs locally (`npm run seed`); on Render only `migrate deploy` runs at start. If you want seeded data in prod, run the seed locally pointing at the prod `DATABASE_URL` once.
+- CI (`.github/workflows/ci.yml`) runs typecheck + build + tests on every push — this won't auto-deploy, the Render/Vercel sides do that.
+
+### Why these picks
+
+- **Backend → Render**: free tier with a real Postgres connection (Railway moved off free in late 2025). Deploys from GitHub on push.
+- **Frontend → Vercel**: zero-config Vite detection, fastest CDN for SPAs, generous free tier.
+- **Backend → Railway**: included `backend/railway.json` if you prefer a paid host with no cold starts. Same flow — `railway init` and link the repo, then set the same env vars.

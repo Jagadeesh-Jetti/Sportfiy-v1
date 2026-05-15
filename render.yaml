@@ -1,0 +1,25 @@
+# Render blueprint — backend web service.
+# Use: in Render dashboard → "New +" → "Blueprint" → connect this repo.
+# Set DATABASE_URL, JWT_SECRET, CORS_ORIGIN in the dashboard (sync: false).
+
+services:
+  - type: web
+    name: sportify-api
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: backend
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && node dist/server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
