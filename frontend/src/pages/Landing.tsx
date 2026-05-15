@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   ArrowRight,
   CalendarCheck,
@@ -8,8 +9,9 @@ import {
   Trophy,
 } from 'lucide-react';
 import { listVenuesApi } from '@/api/venues';
+import { getStatsApi } from '@/api/stats';
 import { VenueCard } from '@/components/venue/VenueCard';
-import type { Venue } from '@/types/api';
+import type { Stats, Venue } from '@/types/api';
 
 const SPORTS_GRID = [
   { name: 'Football', emoji: '⚽' },
@@ -31,12 +33,7 @@ const SPORTS_GRID = [
 
 const CITIES = ['Bengaluru', 'Hyderabad'];
 
-const STATS = [
-  { value: '10K+', label: 'Active players' },
-  { value: '60+', label: 'Verified venues' },
-  { value: '15', label: 'Sports covered' },
-  { value: '50K+', label: 'Games played' },
-];
+const fallbackStats: Stats = { users: 0, venues: 0, sports: 0, bookings: 0, cities: [] };
 
 const TICKER = [
   'Indiranagar', 'Koramangala', 'Whitefield', 'HSR Layout', 'Jayanagar', 'Hebbal',
@@ -47,18 +44,19 @@ export const Landing = () => {
   const navigate = useNavigate();
   const [featured, setFeatured] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<Stats>(fallbackStats);
 
-  // Hero search state (date deliberately ignored on submit for MVP — search filters are sport+city only)
   const today = new Date().toISOString().slice(0, 10);
   const [sport, setSport] = useState('');
   const [city, setCity] = useState('');
   const [date, setDate] = useState(today);
 
   useEffect(() => {
-    listVenuesApi({ limit: 4 })
+    listVenuesApi({ sort: 'rating', limit: 4 })
       .then((res) => setFeatured(res.items))
       .catch(() => setFeatured([]))
       .finally(() => setLoading(false));
+    getStatsApi().then(setStats).catch(() => undefined);
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -135,15 +133,15 @@ export const Landing = () => {
             </button>
           </form>
 
-          {/* Stats row */}
+          {/* Stats row — wired to live DB counts */}
           <div className="mx-auto mt-8 flex max-w-3xl flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-400 sm:text-sm">
-            <span><strong className="text-white">10K+</strong> players</span>
+            <span><strong className="text-white tabular-nums">{stats.users.toLocaleString()}</strong> players</span>
             <span aria-hidden className="text-ink-700">·</span>
-            <span><strong className="text-white">60+</strong> venues</span>
+            <span><strong className="text-white tabular-nums">{stats.venues.toLocaleString()}</strong> venues</span>
             <span aria-hidden className="text-ink-700">·</span>
-            <span><strong className="text-white">15</strong> sports</span>
+            <span><strong className="text-white tabular-nums">{stats.sports}</strong> sports</span>
             <span aria-hidden className="text-ink-700">·</span>
-            <span>Bengaluru + Hyderabad</span>
+            <span>{stats.cities.length > 0 ? stats.cities.slice(0, 2).join(' + ') : 'Bengaluru + Hyderabad'}</span>
           </div>
         </div>
 
@@ -221,19 +219,21 @@ export const Landing = () => {
         </div>
       </section>
 
-      {/* ───── Stats band (dark) ───── */}
+      {/* ───── Stats band (dark, wired to live DB counts) ───── */}
       <section className="relative overflow-hidden bg-ink-900 py-16 text-white">
         <div className="pointer-events-none absolute inset-0 bg-dot-grid opacity-30" />
-        <div className="relative mx-auto grid max-w-6xl grid-cols-2 gap-8 px-4 md:grid-cols-4">
-          {STATS.map((s) => (
-            <div key={s.label} className="text-center md:text-left">
-              <div className="text-4xl font-extrabold text-brand-400 md:text-5xl">{s.value}</div>
-              <div className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-400 md:text-sm">
-                {s.label}
-              </div>
-            </div>
-          ))}
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-100px' }}
+          transition={{ duration: 0.4 }}
+          className="relative mx-auto grid max-w-6xl grid-cols-2 gap-8 px-4 md:grid-cols-4"
+        >
+          <StatBlock value={stats.users.toLocaleString()} label="Active players" />
+          <StatBlock value={stats.venues.toLocaleString()} label="Verified venues" />
+          <StatBlock value={stats.sports.toString()} label="Sports covered" />
+          <StatBlock value={stats.bookings.toLocaleString()} label="Games played" />
+        </motion.div>
       </section>
 
       {/* ───── Featured venues ───── */}
@@ -306,6 +306,18 @@ export const Landing = () => {
 };
 
 // ──────────────── Helpers ────────────────
+
+const StatBlock = ({ value, label }: { value: string; label: string }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true }}
+    className="text-center md:text-left"
+  >
+    <div className="text-4xl font-extrabold text-brand-400 tabular-nums md:text-5xl">{value}</div>
+    <div className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-400 md:text-sm">{label}</div>
+  </motion.div>
+);
 
 const SectionHeader = ({
   eyebrow,

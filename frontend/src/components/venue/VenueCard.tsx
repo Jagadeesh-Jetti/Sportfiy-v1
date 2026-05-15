@@ -1,10 +1,15 @@
 import { Link } from 'react-router-dom';
 import { MapPin, Star } from 'lucide-react';
 import type { Venue } from '@/types/api';
+import { FavoriteButton } from './FavoriteButton';
+import { VerifiedBadge } from '@/components/common/VerifiedBadge';
 
-type Props = { venue: Venue };
+type Props = {
+  venue: Venue;
+  initiallyFavorited?: boolean;
+};
 
-export const VenueCard = ({ venue }: Props) => {
+export const VenueCard = ({ venue, initiallyFavorited = false }: Props) => {
   const cover = venue.images[0] ?? 'https://placehold.co/800x500/0a0f1c/a3e635?text=Sportify';
   return (
     <Link
@@ -18,22 +23,38 @@ export const VenueCard = ({ venue }: Props) => {
           loading="lazy"
           className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
         />
-        {/* Bottom gradient for legibility */}
         <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-ink-900/70 to-transparent" />
 
-        {/* Price pill (top-right) */}
-        {venue.pricePerHour != null && (
-          <div className="absolute right-3 top-3 rounded-full bg-ink-900/85 px-3 py-1 text-xs font-bold text-brand-400 backdrop-blur-md">
-            ₹{venue.pricePerHour}
-            <span className="ml-0.5 text-[10px] font-medium text-slate-300">/hr</span>
+        {/* Top-left badges */}
+        {venue.isVerified && (
+          <div className="absolute left-3 top-3">
+            <VerifiedBadge />
           </div>
         )}
 
-        {/* Rating badge (bottom-left) */}
-        <div className="absolute bottom-3 left-3 flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-xs font-semibold text-slate-900 backdrop-blur">
-          <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
-          4.8
+        {/* Top-right favorite + price */}
+        <div className="absolute right-3 top-3 flex flex-col items-end gap-2">
+          <FavoriteButton venueId={venue.id} initial={initiallyFavorited} />
+          {venue.pricePerHour != null && (
+            <div className="rounded-full bg-ink-900/85 px-3 py-1 text-xs font-bold text-brand-400 backdrop-blur-md tabular-nums">
+              ₹{venue.pricePerHour}
+              <span className="ml-0.5 text-[10px] font-medium text-slate-300">/hr</span>
+            </div>
+          )}
         </div>
+
+        {/* Rating badge (bottom-left) */}
+        {venue.avgRating !== null && venue.reviewCount > 0 ? (
+          <div className="absolute bottom-3 left-3 flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-xs font-semibold text-slate-900 backdrop-blur tabular-nums">
+            <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
+            {venue.avgRating.toFixed(1)}
+            <span className="font-normal text-slate-500">({venue.reviewCount})</span>
+          </div>
+        ) : (
+          <div className="absolute bottom-3 left-3 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-slate-600 backdrop-blur">
+            New
+          </div>
+        )}
       </div>
 
       <div className="flex flex-1 flex-col gap-2 p-4">

@@ -87,16 +87,16 @@ export const MyBookings = () => {
               key={b.id}
               className="flex flex-col gap-4 rounded-xl border border-neutral-200 bg-white p-4 sm:flex-row sm:items-center"
             >
-              <div className="h-20 w-full overflow-hidden rounded-lg bg-neutral-100 sm:h-20 sm:w-28">
+              <Link to={`/bookings/${b.id}`} className="h-20 w-full overflow-hidden rounded-lg bg-neutral-100 sm:h-20 sm:w-28">
                 <img
                   src={b.venue.images[0] ?? 'https://placehold.co/200x150/10b981/ffffff?text=S'}
                   alt={b.venue.name}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-cover transition hover:scale-105"
                 />
-              </div>
+              </Link>
               <div className="flex-1">
                 <Link
-                  to={`/venues/${b.venue.id}`}
+                  to={`/bookings/${b.id}`}
                   className="font-semibold text-neutral-900 hover:text-brand-700"
                 >
                   {b.venue.name}
