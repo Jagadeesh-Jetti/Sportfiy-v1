@@ -83,7 +83,13 @@ type Archetype = {
   priceRange: [number, number];
   hours: [number, number];
   images: string[];
+  amenities: string[];
 };
+
+const COMMON = ['PARKING', 'RESTROOM', 'DRINKING_WATER'];
+const INDOOR = [...COMMON, 'AC', 'CHANGING_ROOM', 'CCTV'];
+const TURF = [...COMMON, 'FLOODLIT', 'CHANGING_ROOM', 'EQUIPMENT_RENTAL', 'FIRST_AID'];
+const PREMIUM = [...COMMON, 'AC', 'CHANGING_ROOM', 'SHOWER', 'CAFE', 'WIFI', 'EQUIPMENT_RENTAL'];
 
 const IMG = {
   turf: [
@@ -126,6 +132,7 @@ const ARCHETYPES: Archetype[] = [
     priceRange: [600, 1000],
     hours: [6, 23],
     images: [...IMG.arena, ...IMG.turf],
+    amenities: [...PREMIUM, 'FLOODLIT'],
   },
   {
     suffix: 'Smash Club',
@@ -134,6 +141,7 @@ const ARCHETYPES: Archetype[] = [
     priceRange: [350, 650],
     hours: [7, 22],
     images: IMG.badminton,
+    amenities: INDOOR,
   },
   {
     suffix: 'Tennis Academy',
@@ -142,6 +150,7 @@ const ARCHETYPES: Archetype[] = [
     priceRange: [800, 1400],
     hours: [6, 21],
     images: IMG.tennis,
+    amenities: [...COMMON, 'FLOODLIT', 'EQUIPMENT_RENTAL', 'CHANGING_ROOM', 'CAFE'],
   },
   {
     suffix: 'Aquatic Centre',
@@ -150,6 +159,7 @@ const ARCHETYPES: Archetype[] = [
     priceRange: [200, 400],
     hours: [5, 22],
     images: IMG.pool,
+    amenities: [...COMMON, 'CHANGING_ROOM', 'SHOWER', 'FIRST_AID', 'CCTV'],
   },
   {
     suffix: 'Football Turf',
@@ -158,6 +168,7 @@ const ARCHETYPES: Archetype[] = [
     priceRange: [800, 1500],
     hours: [6, 24],
     images: IMG.turf,
+    amenities: TURF,
   },
   {
     suffix: 'Cricket Ground',
@@ -166,6 +177,7 @@ const ARCHETYPES: Archetype[] = [
     priceRange: [600, 1200],
     hours: [6, 22],
     images: IMG.cricket,
+    amenities: [...TURF, 'WIFI'],
   },
   {
     suffix: 'Basketball Court',
@@ -174,6 +186,7 @@ const ARCHETYPES: Archetype[] = [
     priceRange: [400, 700],
     hours: [7, 22],
     images: IMG.basketball,
+    amenities: INDOOR,
   },
   {
     suffix: 'Sports Hub',
@@ -182,6 +195,7 @@ const ARCHETYPES: Archetype[] = [
     priceRange: [500, 900],
     hours: [6, 23],
     images: IMG.arena,
+    amenities: PREMIUM,
   },
   {
     suffix: 'Squash Centre',
@@ -190,6 +204,7 @@ const ARCHETYPES: Archetype[] = [
     priceRange: [400, 700],
     hours: [7, 22],
     images: IMG.squash,
+    amenities: [...INDOOR, 'EQUIPMENT_RENTAL'],
   },
   {
     suffix: 'Skating Rink',
@@ -198,6 +213,7 @@ const ARCHETYPES: Archetype[] = [
     priceRange: [200, 400],
     hours: [16, 22],
     images: IMG.basketball,
+    amenities: [...COMMON, 'FLOODLIT', 'EQUIPMENT_RENTAL', 'FIRST_AID'],
   },
 ];
 
@@ -296,13 +312,17 @@ async function main() {
           .map((sn) => sportByName[sn]?.id)
           .filter((x): x is string => Boolean(x));
 
+        const verified = hash32(name) % 3 !== 0; // ~2/3 of venues verified
         venuePayloads.push({
           name,
           description: archetype.description,
           location: `${hood.name}, ${city}`,
           city,
           address: `${hood.name}, ${city}`,
+          phone: `+91 9${String(hash32(name)).slice(0, 9)}`,
           images: archetype.images,
+          amenities: archetype.amenities,
+          isVerified: verified,
           lat: hood.lat + (Math.random() - 0.5) * 0.01,
           lng: hood.lng + (Math.random() - 0.5) * 0.01,
           openingHour: archetype.hours[0],
@@ -319,8 +339,105 @@ async function main() {
 
   for (const data of venuePayloads) {
     const exists = await prisma.venue.findFirst({ where: { name: data.name } });
-    if (exists) continue;
+    if (exists) {
+      // Update amenities/phone/isVerified on existing venues created by the
+      // previous seed version, so re-running this seed brings them in line.
+      await prisma.venue.update({
+        where: { id: exists.id },
+        data: {
+          amenities: data.amenities as string[],
+          phone: data.phone as string,
+          isVerified: data.isVerified as boolean,
+        },
+      });
+      continue;
+    }
     await prisma.venue.create({ data });
+  }
+
+  // ── Seed a sprinkle of reviews so the ★ ratings look real ──
+  console.log('Seeding sample reviews...');
+  const player = await prisma.user.findUnique({ where: { email: 'player@sportify.dev' } });
+  const allVenuesForReviews = await prisma.venue.findMany({ select: { id: true, name: true } });
+  if (player) {
+    const REVIEW_TEMPLATES = [
+      { rating: 5, comment: 'Top-notch facility. Booked again next week.' },
+      { rating: 5, comment: 'Clean courts, friendly staff, easy parking.' },
+      { rating: 4, comment: 'Solid venue. Could use better lighting in the evening.' },
+      { rating: 4, comment: 'Good vibe, decent crowd. Will visit again.' },
+      { rating: 5, comment: 'Best turf in the neighborhood, hands down.' },
+      { rating: 3, comment: 'Average. Equipment was old but playable.' },
+    ];
+    // To create reviews we need eligibility — which our service enforces.
+    // For seed we bypass the eligibility rule and insert directly.
+    for (const v of allVenuesForReviews) {
+      // Deterministically pick a review template (or skip ~25% of venues to get variety).
+      const h = hash32(v.id);
+      if (h % 4 === 0) continue;
+      const tpl = REVIEW_TEMPLATES[h % REVIEW_TEMPLATES.length]!;
+      try {
+        await prisma.review.create({
+          data: { userId: player.id, venueId: v.id, rating: tpl.rating, comment: tpl.comment },
+        });
+      } catch {
+        // duplicate (already reviewed) — fine, just skip
+      }
+    }
+    // Recompute aggregates on every venue.
+    for (const v of allVenuesForReviews) {
+      const agg = await prisma.review.aggregate({
+        where: { venueId: v.id },
+        _avg: { rating: true },
+        _count: { _all: true },
+      });
+      await prisma.venue.update({
+        where: { id: v.id },
+        data: {
+          avgRating: agg._count._all > 0 ? agg._avg.rating : null,
+          reviewCount: agg._count._all,
+        },
+      });
+    }
+  }
+
+  // ── Seed a few public activities ──
+  console.log('Seeding sample activities...');
+  const allSports = await prisma.sport.findMany();
+  const sportByNameForActivities = Object.fromEntries(allSports.map((s) => [s.name, s]));
+  if (player) {
+    const futureVenues = await prisma.venue.findMany({ take: 8 });
+    const ACTIVITIES = [
+      { title: 'Friendly 5-a-side football — beginners welcome', sport: 'Football', capacity: 10, hoursAhead: 26 },
+      { title: 'Doubles badminton ladder — intermediate', sport: 'Badminton', capacity: 4, hoursAhead: 30 },
+      { title: 'Sunday morning cricket tape-ball game', sport: 'Cricket', capacity: 16, hoursAhead: 50 },
+      { title: 'Pickleball open play', sport: 'Pickleball', capacity: 8, hoursAhead: 28 },
+      { title: 'Tennis hitting partners needed', sport: 'Tennis', capacity: 4, hoursAhead: 36 },
+      { title: '3v3 basketball pickup', sport: 'Basketball', capacity: 6, hoursAhead: 44 },
+    ];
+    for (let i = 0; i < ACTIVITIES.length; i++) {
+      const a = ACTIVITIES[i]!;
+      const sport = sportByNameForActivities[a.sport];
+      const venue = futureVenues[i % futureVenues.length];
+      if (!sport || !venue) continue;
+      const exists = await prisma.activity.findFirst({ where: { title: a.title } });
+      if (exists) continue;
+      const startsAt = new Date(Date.now() + a.hoursAhead * 60 * 60 * 1000);
+      await prisma.activity.create({
+        data: {
+          title: a.title,
+          description: 'All skill levels welcome. Bring water!',
+          sportId: sport.id,
+          venueId: venue.id,
+          hostId: player.id,
+          startsAt,
+          endsAt: new Date(startsAt.getTime() + 60 * 60 * 1000),
+          capacity: a.capacity,
+          price: 0,
+          privacy: 'PUBLIC',
+          participants: { connect: [{ id: player.id }] },
+        },
+      });
+    }
   }
 
   console.log('Generating slots for the next 7 days for every venue...');
@@ -351,6 +468,8 @@ async function main() {
   const totalSports = await prisma.sport.count();
   const totalVenues = await prisma.venue.count();
   const totalSlots = await prisma.slot.count();
+  const totalReviews = await prisma.review.count();
+  const totalActivities = await prisma.activity.count();
   const venuesByCity = await prisma.venue.groupBy({
     by: ['city'],
     _count: { _all: true },
@@ -359,12 +478,14 @@ async function main() {
 
   console.log('───────────────────────────────────────');
   console.log(`Seed complete.`);
-  console.log(`  Sports : ${totalSports}`);
-  console.log(`  Venues : ${totalVenues}`);
+  console.log(`  Sports     : ${totalSports}`);
+  console.log(`  Venues     : ${totalVenues}`);
   for (const c of venuesByCity) {
-    console.log(`           ${c.city ?? 'Unknown'}: ${c._count._all}`);
+    console.log(`               ${c.city ?? 'Unknown'}: ${c._count._all}`);
   }
-  console.log(`  Slots  : ${totalSlots}  (+${slotCreated} created this run)`);
+  console.log(`  Slots      : ${totalSlots}  (+${slotCreated} created this run)`);
+  console.log(`  Reviews    : ${totalReviews}`);
+  console.log(`  Activities : ${totalActivities}`);
   console.log(`Demo accounts (password ${PASSWORD}):`);
   console.log(`  admin@sportify.dev`);
   for (const m of MERCHANTS) console.log(`  ${m.email}`);
