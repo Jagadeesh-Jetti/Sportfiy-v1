@@ -6,6 +6,11 @@ export const createBookingApi = async (input: { slotId: string; sportId: string 
   return data.booking;
 };
 
+export const getBookingApi = async (id: string) => {
+  const { data } = await api.get<{ booking: Booking }>(`/bookings/${id}`);
+  return data.booking;
+};
+
 export const listMyBookingsApi = async (): Promise<{ upcoming: Booking[]; past: Booking[] }> => {
   const { data } = await api.get<{ upcoming: Booking[]; past: Booking[] }>('/bookings/me');
   return data;

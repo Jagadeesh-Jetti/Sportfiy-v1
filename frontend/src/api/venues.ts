@@ -7,6 +7,9 @@ export type ListVenuesParams = {
   q?: string;
   minPrice?: number;
   maxPrice?: number;
+  minRating?: number;
+  amenity?: string;
+  sort?: 'newest' | 'rating' | 'price_asc' | 'price_desc';
   page?: number;
   limit?: number;
 };
@@ -19,6 +22,25 @@ export const listVenuesApi = async (params: ListVenuesParams = {}): Promise<Venu
 export const getVenueApi = async (id: string): Promise<Venue> => {
   const { data } = await api.get<{ venue: Venue }>(`/venues/${id}`);
   return data.venue;
+};
+
+export const getSimilarVenuesApi = async (id: string): Promise<Venue[]> => {
+  const { data } = await api.get<{ venues: Venue[] }>(`/venues/${id}/similar`);
+  return data.venues;
+};
+
+export type MerchantAnalytics = {
+  venues: number;
+  bookingsTotal: number;
+  bookingsThisWeek: number;
+  revenueThisWeek: number;
+  avgRating: number | null;
+  topSports: { sportId: string; sportName: string; bookings: number }[];
+};
+
+export const getMerchantAnalyticsApi = async () => {
+  const { data } = await api.get<MerchantAnalytics>('/venues/me/analytics');
+  return data;
 };
 
 export const listMyVenuesApi = async (): Promise<Venue[]> => {
