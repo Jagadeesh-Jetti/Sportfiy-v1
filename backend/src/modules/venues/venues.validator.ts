@@ -2,6 +2,23 @@ import { z } from 'zod';
 
 const HOUR = z.coerce.number().int().min(0).max(24);
 
+export const AMENITIES = [
+  'PARKING',
+  'RESTROOM',
+  'DRINKING_WATER',
+  'EQUIPMENT_RENTAL',
+  'CHANGING_ROOM',
+  'SHOWER',
+  'FLOODLIT',
+  'AC',
+  'CAFE',
+  'FIRST_AID',
+  'WIFI',
+  'CCTV',
+] as const;
+
+export const amenityEnum = z.enum(AMENITIES);
+
 export const createVenueSchema = z
   .object({
     name: z.string().trim().min(2).max(120),
@@ -9,7 +26,9 @@ export const createVenueSchema = z
     location: z.string().trim().min(2).max(200),
     city: z.string().trim().min(1).max(80).optional(),
     address: z.string().trim().max(300).optional(),
+    phone: z.string().trim().min(7).max(20).optional(),
     images: z.array(z.string().trim().url()).max(20).default([]),
+    amenities: z.array(amenityEnum).max(20).default([]),
     lat: z.number().min(-90).max(90),
     lng: z.number().min(-180).max(180),
     openingHour: HOUR,
@@ -37,6 +56,9 @@ export const listVenuesQuerySchema = z.object({
   q: z.string().trim().optional(),
   minPrice: z.coerce.number().min(0).optional(),
   maxPrice: z.coerce.number().min(0).optional(),
+  minRating: z.coerce.number().min(0).max(5).optional(),
+  amenity: z.string().trim().optional(),
+  sort: z.enum(['newest', 'rating', 'price_asc', 'price_desc']).default('newest'),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });

@@ -3,6 +3,8 @@ import { AppError } from '../../utils/AppError.js';
 import {
   createVenueService,
   deleteVenueService,
+  getMerchantAnalyticsService,
+  getSimilarVenuesService,
   getVenueByIdService,
   listMyVenuesService,
   listVenuesService,
@@ -22,6 +24,11 @@ export const listVenuesController = async (req: Request, res: Response) => {
 export const getVenueController = async (req: Request, res: Response) => {
   const venue = await getVenueByIdService(req.params.id as string);
   res.json({ venue });
+};
+
+export const getSimilarVenuesController = async (req: Request, res: Response) => {
+  const venues = await getSimilarVenuesService(req.params.id as string);
+  res.json({ venues });
 };
 
 export const createVenueController = async (req: Request, res: Response) => {
@@ -50,4 +57,10 @@ export const listMyVenuesController = async (req: Request, res: Response) => {
   if (!req.user) throw new AppError(401, 'Authentication required');
   const venues = await listMyVenuesService(req.user.id);
   res.json({ venues });
+};
+
+export const merchantAnalyticsController = async (req: Request, res: Response) => {
+  if (!req.user) throw new AppError(401, 'Authentication required');
+  const analytics = await getMerchantAnalyticsService(req.user.id);
+  res.json(analytics);
 };

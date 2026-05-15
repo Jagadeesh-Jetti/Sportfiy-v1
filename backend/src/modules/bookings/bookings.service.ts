@@ -7,9 +7,58 @@ const BOOKING_INCLUDE = {
   sport: true,
   slot: true,
   venue: {
-    select: { id: true, name: true, location: true, city: true, images: true },
+    select: {
+      id: true,
+      name: true,
+      location: true,
+      city: true,
+      address: true,
+      images: true,
+      lat: true,
+      lng: true,
+      phone: true,
+      pricePerHour: true,
+    },
   },
 } as const;
+
+// Short 6-char check-in code derived from the booking id.
+// Stable per booking, no DB column needed. Good enough for an MVP scanner.
+export const checkInCodeFor = (bookingId: string): string =>
+  bookingId.replace(/-/g, '').slice(0, 6).toUpperCase();
+
+export const getBookingByIdService = async (bookingId: string, userId: string, userRole: string) => {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: {
+      ...BOOKING_INCLUDE,
+      user: { select: { id: true, name: true, email: true } },
+      venue: {
+        select: {
+          id: true,
+          name: true,
+          location: true,
+          city: true,
+          address: true,
+          images: true,
+          lat: true,
+          lng: true,
+          phone: true,
+          pricePerHour: true,
+          ownerId: true,
+        },
+      },
+    },
+  });
+  if (!booking) throw new AppError(404, 'Booking not found');
+  const isOwner = booking.userId === userId;
+  const isVenueOwner = booking.venue.ownerId === userId;
+  const isAdmin = userRole === 'ADMIN';
+  if (!isOwner && !isVenueOwner && !isAdmin) {
+    throw new AppError(403, 'Not allowed to view this booking');
+  }
+  return { ...booking, checkInCode: checkInCodeFor(booking.id) };
+};
 
 export const createBookingService = async (userId: string, input: CreateBookingInput) => {
   try {

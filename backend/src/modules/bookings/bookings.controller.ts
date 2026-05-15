@@ -3,6 +3,7 @@ import { AppError } from '../../utils/AppError.js';
 import {
   cancelBookingService,
   createBookingService,
+  getBookingByIdService,
   listMyBookingsService,
   listVenueBookingsService,
 } from './bookings.service.js';
@@ -34,4 +35,10 @@ export const cancelBookingController = async (req: Request, res: Response) => {
     req.user.role,
   );
   res.json({ booking: result });
+};
+
+export const getBookingController = async (req: Request, res: Response) => {
+  if (!req.user) throw new AppError(401, 'Authentication required');
+  const booking = await getBookingByIdService(req.params.id as string, req.user.id, req.user.role);
+  res.json({ booking });
 };

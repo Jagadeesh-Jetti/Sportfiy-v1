@@ -10,4 +10,16 @@ export const updateMeSchema = z
   })
   .strict();
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8).max(128),
+});
+
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1),
+  confirm: z.literal('DELETE'),
+});
+
 export type UpdateMeInput = z.infer<typeof updateMeSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;

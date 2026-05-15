@@ -14,6 +14,7 @@ const bookingLimiter = rateLimit({
 import {
   cancelBookingController,
   createBookingController,
+  getBookingController,
   listMyBookingsController,
   listVenueBookingsController,
 } from './bookings.controller.js';
@@ -34,6 +35,13 @@ bookingsRouter.post(
 );
 
 bookingsRouter.get('/me', requireAuth, asyncHandler(listMyBookingsController));
+
+bookingsRouter.get(
+  '/:id',
+  requireAuth,
+  validate({ params: bookingIdParamSchema }),
+  asyncHandler(getBookingController),
+);
 
 bookingsRouter.get(
   '/venue/:venueId',

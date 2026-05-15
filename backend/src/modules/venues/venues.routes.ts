@@ -6,9 +6,11 @@ import { validate } from '../../middlewares/validate.middleware.js';
 import {
   createVenueController,
   deleteVenueController,
+  getSimilarVenuesController,
   getVenueController,
   listMyVenuesController,
   listVenuesController,
+  merchantAnalyticsController,
   updateVenueController,
 } from './venues.controller.js';
 import {
@@ -37,6 +39,19 @@ venuesRouter.get(
   requireAuth,
   requireRole(['MERCHANT', 'ADMIN']),
   asyncHandler(listMyVenuesController),
+);
+
+venuesRouter.get(
+  '/me/analytics',
+  requireAuth,
+  requireRole(['MERCHANT', 'ADMIN']),
+  asyncHandler(merchantAnalyticsController),
+);
+
+venuesRouter.get(
+  '/:id/similar',
+  validate({ params: venueIdParamSchema }),
+  asyncHandler(getSimilarVenuesController),
 );
 
 venuesRouter.get(
